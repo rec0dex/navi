@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
-import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
+import { setupMirage } from 'ember-cli-mirage/test-support';
 import GQLQueries from 'navi-data/gql/metadata-queries';
 import { print } from 'graphql/language/printer';
 import scenario from 'dummy/mirage/scenarios/graphql';
@@ -26,7 +26,7 @@ module('Unit | Elide Metadata Adapter', function(hooks) {
 
     const gqlQuery = print(GQLQueries.table.all).trim(); //GQL Query as string
 
-    this.server.post('https://data.naviapp.io/v1/graphql', (schema, { requestBody }) => {
+    this.server.post('https://data.naviapp.io/graphql', (schema, { requestBody }) => {
       const { operationName, variables, query } = JSON.parse(requestBody);
 
       assert.notOk(operationName, 'No operation name specified');
@@ -47,7 +47,7 @@ module('Unit | Elide Metadata Adapter', function(hooks) {
 
     const gqlQuery = print(GQLQueries.table.single).trim(); //GQL Query as string
 
-    this.server.post('https://data.naviapp.io/v1/graphql', (schema, { requestBody }) => {
+    this.server.post('https://data.naviapp.io/graphql', (schema, { requestBody }) => {
       const { operationName, variables, query } = JSON.parse(requestBody);
 
       assert.notOk(operationName, 'No operation name specified');
@@ -74,13 +74,15 @@ module('Unit | Elide Metadata Adapter', function(hooks) {
       'name',
       'description',
       'category',
-      'cardinalitySize',
+      'cardinality',
       'metrics',
       'dimensions',
+      'timeDimensions',
       '__typename'
     ];
 
-    const { tables } = await Adapter.fetchAll('table');
+    const { tables: tableConnection } = await Adapter.fetchAll('table');
+    const tables = tableConnection.edges.map(edge => edge.node);
 
     // Test that all fields specified in the query are included in the result and none of them are null as they should be populated by the factories
     assert.deepEqual(
@@ -106,8 +108,10 @@ module('Unit | Elide Metadata Adapter', function(hooks) {
               description: 'This is metric 0',
               category: 'categoryOne',
               valueType: 'NUMBER',
-              tags: ['DISPLAY'],
+              columnTags: ['DISPLAY'],
               defaultFormat: 'number',
+              columnType: 'field',
+              expression: null,
               __typename: 'Metric'
             },
             __typename: 'MetricEdge'
@@ -119,8 +123,10 @@ module('Unit | Elide Metadata Adapter', function(hooks) {
               description: 'This is metric 1',
               category: 'categoryOne',
               valueType: 'NUMBER',
-              tags: ['DISPLAY'],
+              columnTags: ['DISPLAY'],
               defaultFormat: 'number',
+              columnType: 'field',
+              expression: null,
               __typename: 'Metric'
             },
             __typename: 'MetricEdge'
@@ -143,7 +149,9 @@ module('Unit | Elide Metadata Adapter', function(hooks) {
               description: 'This is dimension 0',
               category: 'categoryOne',
               valueType: 'TEXT',
-              tags: ['DISPLAY'],
+              columnTags: ['DISPLAY'],
+              columnType: 'field',
+              expression: null,
               __typename: 'Dimension'
             }
           }
@@ -165,8 +173,10 @@ module('Unit | Elide Metadata Adapter', function(hooks) {
               description: 'This is metric 2',
               category: 'categoryOne',
               valueType: 'NUMBER',
-              tags: ['DISPLAY'],
+              columnTags: ['DISPLAY'],
               defaultFormat: 'number',
+              columnType: 'field',
+              expression: null,
               __typename: 'Metric'
             },
             __typename: 'MetricEdge'
@@ -178,8 +188,10 @@ module('Unit | Elide Metadata Adapter', function(hooks) {
               description: 'This is metric 3',
               category: 'categoryOne',
               valueType: 'NUMBER',
-              tags: ['DISPLAY'],
+              columnTags: ['DISPLAY'],
               defaultFormat: 'number',
+              columnType: 'field',
+              expression: null,
               __typename: 'Metric'
             },
             __typename: 'MetricEdge'
@@ -215,7 +227,7 @@ module('Unit | Elide Metadata Adapter', function(hooks) {
           name: 'Table 0',
           description: 'This is Table 0',
           category: 'categoryOne',
-          cardinalitySize: 'SMALL',
+          cardinality: 'SMALL',
           metrics: {
             edges: [
               {
@@ -225,8 +237,10 @@ module('Unit | Elide Metadata Adapter', function(hooks) {
                   description: 'This is metric 0',
                   category: 'categoryOne',
                   valueType: 'NUMBER',
-                  tags: ['DISPLAY'],
+                  columnTags: ['DISPLAY'],
                   defaultFormat: 'number',
+                  columnType: 'field',
+                  expression: null,
                   __typename: 'Metric'
                 },
                 __typename: 'MetricEdge'
@@ -238,8 +252,10 @@ module('Unit | Elide Metadata Adapter', function(hooks) {
                   description: 'This is metric 1',
                   category: 'categoryOne',
                   valueType: 'NUMBER',
-                  tags: ['DISPLAY'],
+                  columnTags: ['DISPLAY'],
                   defaultFormat: 'number',
+                  columnType: 'field',
+                  expression: null,
                   __typename: 'Metric'
                 },
                 __typename: 'MetricEdge'
@@ -256,13 +272,19 @@ module('Unit | Elide Metadata Adapter', function(hooks) {
                   description: 'This is dimension 0',
                   category: 'categoryOne',
                   valueType: 'TEXT',
-                  tags: ['DISPLAY'],
+                  columnTags: ['DISPLAY'],
+                  columnType: 'field',
+                  expression: null,
                   __typename: 'Dimension'
                 },
                 __typename: 'DimensionEdge'
               }
             ],
             __typename: 'DimensionConnection'
+          },
+          timeDimensions: {
+            edges: [],
+            __typename: 'TimeDimensionConnection'
           },
           __typename: 'Table'
         }
