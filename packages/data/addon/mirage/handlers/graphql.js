@@ -11,13 +11,14 @@ import Moment from 'moment';
 const API_DATE_FORMAT = 'YYYY-MM-DD';
 
 /**
- * @param {Number} n
- * @returns n number of sequential days in format YYYY-MM-DD
+ * @param {string} filter
+ * @returns 3 sequential days in format YYYY-MM-DD ending on today
  */
-function _dateSequence(n) {
+function _getDates(/* filter */) {
+  // TODO: Generate dates based on filters on time dimensions and the chosen grain
   let day = Moment();
   let days = [];
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < 3; i++) {
     days.push(Moment(day).format(API_DATE_FORMAT));
     day = Moment(day).subtract(1, 'days');
   }
@@ -25,6 +26,10 @@ function _dateSequence(n) {
   return days;
 }
 
+/**
+ * @param {Number} n
+ * @returns n random dimension values
+ */
 function _dimensionValues(n) {
   const vals = [];
   for (let i = 0; i < n; i++) {
@@ -34,29 +39,42 @@ function _dimensionValues(n) {
   return vals;
 }
 
+/**
+ * @param {String} queryStr - stringified graphql query
+ * @returns {Object}
+ */
+function _parseGQLQuery(queryStr) {
+  const queryAST = gql`
+    ${queryStr}
+  `;
+
+  // Parse requested table, columns, and filters from graphql query
+  const selection = queryAST.definitions[0]?.selectionSet.selections[0];
+  return {
+    table: selection?.name.value,
+    args: selection?.arguments.reduce((argsObj, arg) => {
+      argsObj[arg.name.value] = arg.value.value;
+      return argsObj;
+    }, {}),
+    fields: selection?.selectionSet.selections[0].selectionSet.selections[0].selectionSet.selections.map(
+      field => field.name.value
+    )
+  };
+}
+
 const OPTIONS = {
   fieldsMap: {
     AsyncQueryResult: {
       responseBody(_, db, parent) {
+        // Create mocked response for an async query
         const { createdOn, query } = parent;
 
         // Only respond if query was created over 10 seconds ago
         if (Date.now() - createdOn >= 10000) {
           parent.status = 'COMPLETE';
-          const queryAST = gql`
-            ${query}
-          `;
 
-          // Parse requested table, columns, and filters from graphql query
-          const selection = queryAST.definitions[0]?.selectionSet.selections[0];
-          const table = selection?.name.value;
-          // const args = selection?.arguments.map(arg => ({
-          //   name: arg.name.value,
-          //   value: arg.value.value
-          // }));
-          const fields = selection?.selectionSet.selections[0].selectionSet.selections[0].selectionSet.selections.map(
-            field => field.name.value
-          );
+          // TODO: get args from _parseGQLQuery result and handle filtering
+          const { table, args, fields } = _parseGQLQuery(query);
 
           if (table) {
             const dbTable = db.tables.find(table);
@@ -72,27 +90,19 @@ const OPTIONS = {
               { metric: [], dimension: [], timeDimension: [] }
             );
             let dates = [];
-            const dimValues = {};
 
             if (columns.timeDimension.length > 0) {
-              dates = _dateSequence(3);
-            }
-
-            if (columns.dimension.length > 0) {
-              columns.dimension.forEach(d => {
-                // generate between 1 and 3 random dim values for each dimension
-                dimValues[d] = _dimensionValues(Math.ceiling(Math.random() * 3));
-              });
+              dates = _getDates(args.filter);
             }
 
             // Convert each date into a row of data
             let rows = dates.map(date => {
               return {
-                dateTime: date.format()
+                dateTime: date
               };
             });
 
-            // Add id and desc for each dimension
+            // Add each dimension
             columns.dimension.forEach(dimension => {
               rows = rows.reduce((newRows, currentRow) => {
                 let dimensionValues = _dimensionValues(faker.random.number({ min: 3, max: 5 }));
@@ -100,13 +110,7 @@ const OPTIONS = {
                 return newRows.concat(
                   dimensionValues.map(value => {
                     let newRow = Object.assign({}, currentRow);
-                    Object.keys(value).forEach(key => {
-                      if (key === 'description') {
-                        newRow[`${dimension}|desc`] = value[key];
-                      } else {
-                        newRow[`${dimension}|${key}`] = value[key];
-                      }
-                    });
+                    newRow[dimension] = value;
                     return newRow;
                   })
                 );
@@ -136,6 +140,11 @@ const OPTIONS = {
               }
             });
           }
+          return JSON.stringify({
+            errors: {
+              message: 'Invalid query sent with AsyncQuery'
+            }
+          });
         }
         return null;
       }
