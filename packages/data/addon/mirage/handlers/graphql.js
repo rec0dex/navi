@@ -6,7 +6,7 @@ import createGraphQLHandler from 'ember-cli-mirage-graphql/handler';
 import schema from 'navi-data/gql/schema';
 import gql from 'graphql-tag';
 import faker from 'faker';
-import Moment from 'moment';
+import moment from 'moment';
 
 const API_DATE_FORMAT = 'YYYY-MM-DD';
 
@@ -16,11 +16,11 @@ const API_DATE_FORMAT = 'YYYY-MM-DD';
  */
 function _getDates(/* filter */) {
   // TODO: Generate dates based on filters on time dimensions and the chosen grain
-  let day = Moment();
+  let day = moment();
   let days = [];
   for (let i = 0; i < 3; i++) {
-    days.push(Moment(day).format(API_DATE_FORMAT));
-    day = Moment(day).subtract(1, 'days');
+    days.push(moment(day).format(API_DATE_FORMAT));
+    day = moment(day).subtract(1, 'days');
   }
 
   return days;

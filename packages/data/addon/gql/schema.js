@@ -251,15 +251,6 @@ const schema = gql`
     FAILURE
   }
 
-  enum RelationshipOp {
-    FETCH
-    DELETE
-    UPSERT
-    REPLACE
-    REMOVE
-    UPDATE
-  }
-
   input AsyncQueryInput {
     id: ID
     createdOn: Date
@@ -297,7 +288,7 @@ const schema = gql`
       first: String
       after: String
       data: [AsyncQueryInput]
-    )
+    ): AsyncQuery
   }
 
   type Mutation {
